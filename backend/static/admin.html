@@ -1,16 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Upload</title>
+    <meta charset="UTF-8">
+    <title>Admin Upload — Jewelry Finder</title>
+    <link rel="stylesheet" href="/static/admin.css">
 </head>
 <body>
 
-<h2>📦 Admin Panel — Upload Jewelry</h2>
+<div class="container">
 
-<input type="file" id="fileInput">
-<button onclick="upload()">Upload</button>
+    <h2>📦 Admin Panel — Upload Jewelry</h2>
 
-<p id="msg"></p>
+    <p class="subtitle">Upload jewelry images to the system. Supported formats: JPG, PNG, JPEG.</p>
+
+    <div class="upload-section">
+        <input type="file" id="fileInput" accept="image/*">
+        <button id="uploadBtn">Upload</button>
+    </div>
+
+    <p id="msg"></p>
+
+</div>
 
 <script src="/static/admin.js"></script>
 </body>
