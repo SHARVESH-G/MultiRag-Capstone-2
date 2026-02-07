@@ -7,8 +7,18 @@
 </head>
 <body>
 
-<div class="container">
+<!-- NAVIGATION BAR -->
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="http://127.0.0.1:8000/" class="nav-logo">💎 Jewelry Finder</a>
+        <div class="nav-links">
+            <a href="http://127.0.0.1:8000/">Search</a>
+            <a href="http://127.0.0.1:8000/admin">Admin</a>
+        </div>
+    </div>
+</nav>
 
+<div class="container">
     <h2>📦 Admin Panel — Upload Jewelry</h2>
 
     <p class="subtitle">Upload jewelry images to the system. Supported formats: JPG, PNG, JPEG.</p>
@@ -19,7 +29,6 @@
     </div>
 
     <p id="msg"></p>
-
 </div>
 
 <script src="/static/admin.js"></script>

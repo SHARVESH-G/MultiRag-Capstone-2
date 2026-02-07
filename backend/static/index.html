@@ -2,12 +2,21 @@
 <html>
 <head>
     <title>Jewelry Search</title>
-
-    <!-- MUST use /static/ -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
+
+<!-- NAVIGATION BAR -->
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="http://127.0.0.1:8000/" class="nav-logo">💎 Jewelry Finder</a>
+        <div class="nav-links">
+            <a href="http://127.0.0.1:8000/">Search</a>
+            <a href="http://127.0.0.1:8000/admin">Admin</a>
+        </div>
+    </div>
+</nav>
 
 <div class="container">
     <h2 class="title">💎 Jewelry Finder</h2>
@@ -22,8 +31,6 @@
     <div id="results" class="results-grid"></div>
 </div>
 
-<!-- MUST use /static/ -->
 <script src="/static/app.js"></script>
-
 </body>
 </html>
