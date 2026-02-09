@@ -18,3 +18,7 @@ function App() {
 }
 
 export default App;
+
+// To RUn :
+// FrontEnd - npm run dev
+// Backend - py -m uvicorn main:app --reload
