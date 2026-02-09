@@ -121,9 +121,6 @@ const SearchPage = () => {
               />
             
             </div>
-            <div>
-              <button style={{margin:"20px 0"}} onClick={()=>setImageFile(null)}>Clear</button>
-            </div>
             </div>
           )}
 
