@@ -5,16 +5,29 @@ import clip
 import numpy as np
 from PIL import Image
 import easyocr
+import tempfile
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sklearn.metrics.pairwise import cosine_similarity
+from fastapi.middleware.cors import CORSMiddleware
 
 # ======================
 # FASTAPI SETUP
 # ======================
 app = FastAPI()
+
+# Allow CORS for React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
@@ -116,6 +129,7 @@ async def search(data: dict):
     q_vec = get_text_emb(query)
     sims = cosine_similarity([q_vec], image_vectors)[0]
 
+    # Optional metal filter
     metal_filter = None
     for m in METALS:
         if m in query.lower():
@@ -127,56 +141,86 @@ async def search(data: dict):
             continue
         scored.append((s, image_paths[i]))
 
-    scored.sort(reverse=True)
-    results = [f"/static/{os.path.relpath(p,'static').replace(os.sep,'/')}" for _, p in scored[:12]]
+    # Sort descending by similarity
+    scored.sort(reverse=True, key=lambda x: x[0])
+
+    # Dynamic threshold: only keep images significantly similar
+    if scored:
+        max_score = scored[0][0]
+        threshold = max_score * 0.8
+        scored = [p for s, p in scored if s >= threshold]
+
+    # Return top 8 max
+    results = [f"/static/{os.path.relpath(p,'static').replace(os.sep,'/')}" for p in scored[:8]]
+
     return {"images": results}
 
 # ======================
-# IMAGE SEARCH + OCR
+# IMAGE SEARCH + OCR fallback
 # ======================
 @app.post("/search/image")
 async def search_image(file: UploadFile = File(...)):
-    temp_path = f"temp_{file.filename}"
-    with open(temp_path, "wb") as f:
-        f.write(await file.read())
+    # Safe temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+        temp_path = tmp.name
+        tmp.write(await file.read())
 
+    results = []
     extracted_text = "jewelry"
     try:
-        result = reader.readtext(temp_path, detail=0)
-        extracted_text = " ".join(result).strip() or "jewelry"
-    except Exception as e:
-        print("OCR failed:", e)
+        # 1️⃣ Extract text using OCR
+        ocr_result = reader.readtext(temp_path, detail=0)
+        extracted_text = " ".join(ocr_result).strip() or "jewelry"
 
-    try:
-        results = await search({"query": extracted_text})
-    except Exception as e:
-        print("Search failed:", e)
-        results = {"images": []}
+        # 2️⃣ Embed image for similarity search
+        img_vec = get_img_emb(temp_path)
+        sims = cosine_similarity([img_vec], image_vectors)[0]
 
-    os.remove(temp_path)
-    return {"query": extracted_text, **results}
+        scored = [(s, image_paths[i]) for i, s in enumerate(sims)]
+        scored.sort(reverse=True, key=lambda x: x[0])
+
+        # Dynamic threshold
+        if scored:
+            threshold = scored[0][0] * 0.8
+            scored = [p for s, p in scored if s >= threshold]
+
+        results = [f"/static/{os.path.relpath(p,'static').replace(os.sep,'/')}" for p in scored[:8]]
+
+    except Exception as e:
+        print("Image search failed:", e)
+
+    finally:
+        os.remove(temp_path)
+
+    return {"query": extracted_text, "images": results}
 
 # ======================
 # ADMIN UPLOAD
 # ======================
 @app.post("/admin/upload")
 async def upload(file: UploadFile = File(...)):
-    temp_path = f"temp_{file.filename}"
-    with open(temp_path, "wb") as f:
-        f.write(await file.read())
+    # Save temp file safely
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+        temp_path = tmp.name
+        tmp.write(await file.read())
 
-    vec = get_img_emb(temp_path)
-    metal = detect_metal(vec)
+    try:
+        vec = get_img_emb(temp_path)
+        metal = detect_metal(vec)
 
-    save_folder = os.path.join(IMAGE_ROOT, metal)
-    os.makedirs(save_folder, exist_ok=True)
+        save_folder = os.path.join(IMAGE_ROOT, metal)
+        os.makedirs(save_folder, exist_ok=True)
 
-    final_path = os.path.join(save_folder, file.filename)
-    shutil.move(temp_path, final_path)
+        final_path = os.path.join(save_folder, file.filename)
+        shutil.move(temp_path, final_path)
 
-    # re-index instantly
-    image_paths.append(final_path)
-    image_vectors.append(vec)
-    image_metals.append(metal)
+        # Re-index instantly
+        image_paths.append(final_path)
+        image_vectors.append(vec)
+        image_metals.append(metal)
+
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     return {"status": "ok", "metal": metal}
